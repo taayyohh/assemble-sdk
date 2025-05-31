@@ -1,0 +1,88 @@
+{
+  "name": "@assemble/sdk",
+  "version": "0.1.0",
+  "description": "TypeScript SDK for the Assemble Protocol - decentralized event management with social coordination",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    },
+    "./react": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "type-check": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest run --coverage",
+    "test:anvil": "vitest run test/**/*.test.ts",
+    "lint": "eslint src --ext .ts,.tsx",
+    "lint:fix": "eslint src --ext .ts,.tsx --fix",
+    "prepublishOnly": "pnpm build && pnpm test"
+  },
+  "keywords": [
+    "ethereum",
+    "web3",
+    "events",
+    "tickets",
+    "blockchain",
+    "social",
+    "sdk",
+    "typescript",
+    "viem",
+    "assemble"
+  ],
+  "author": "Assemble Protocol",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/taayyohh/assemble-sdk.git"
+  },
+  "bugs": {
+    "url": "https://github.com/taayyohh/assemble-sdk/issues"
+  },
+  "homepage": "https://github.com/taayyohh/assemble-sdk#readme",
+  "peerDependencies": {
+    "react": "^18.0.0",
+    "viem": "^2.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  },
+  "dependencies": {
+    "abitype": "^1.0.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "viem": "^2.30.0",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "@typescript-eslint/eslint-plugin": "^6.21.0",
+    "@typescript-eslint/parser": "^6.21.0",
+    "@vitest/coverage-v8": "^3.1.4",
+    "@vitest/ui": "^3.1.4",
+    "eslint": "^8.57.0",
+    "tsup": "^8.5.0",
+    "typescript": "^5.8.0",
+    "vitest": "^3.1.4"
+  }
+}
