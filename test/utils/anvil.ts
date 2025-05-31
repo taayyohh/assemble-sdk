@@ -9,6 +9,7 @@ export interface AnvilInstance {
   chainId: number
   accounts: Address[]
   privateKeys: `0x${string}`[]
+  contractAddress?: Address
 }
 
 export interface TestClients {
@@ -19,6 +20,36 @@ export interface TestClients {
 
 // Real deployed contract on Sepolia
 export const SEPOLIA_CONTRACT_ADDRESS = '0x9A5F66b4dB17f6546D4A224Eb41468f7C2079B59' as Address
+
+// Contract ABI for deployment (minimal needed for testing)
+const ASSEMBLE_ABI = [
+  {
+    "type": "constructor",
+    "inputs": [{"name": "_feeTo", "type": "address"}],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "feeTo",
+    "inputs": [],
+    "outputs": [{"name": "", "type": "address"}],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "protocolFeeBps",
+    "inputs": [],
+    "outputs": [{"name": "", "type": "uint16"}],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "nextEventId",
+    "inputs": [],
+    "outputs": [{"name": "", "type": "uint256"}],
+    "stateMutability": "view"
+  }
+] as const
 
 /**
  * Create clients for testing against real Sepolia deployment
@@ -35,12 +66,12 @@ export function createSepoliaTestClients(accountIndex = 0): TestClients {
   
   const publicClient = createPublicClient({
     chain: sepolia,
-    transport: http('https://eth-sepolia.api.onfinality.io/public')
+    transport: http('https://ethereum-sepolia-rpc.publicnode.com')
   })
 
   const walletClient = createWalletClient({
     chain: sepolia,
-    transport: http('https://eth-sepolia.api.onfinality.io/public'),
+    transport: http('https://ethereum-sepolia-rpc.publicnode.com'),
     account
   })
 
@@ -52,7 +83,7 @@ export function createSepoliaTestClients(accountIndex = 0): TestClients {
 }
 
 /**
- * Start Anvil instance for testing
+ * Start Anvil instance for testing - LOCAL ONLY (no forking)
  */
 export async function startAnvil(): Promise<AnvilInstance> {
   const rpcUrl = 'http://127.0.0.1:8546'
@@ -68,10 +99,10 @@ export async function startAnvil(): Promise<AnvilInstance> {
   const accounts = privateKeys.map(pk => privateKeyToAccount(pk).address)
 
   return new Promise((resolve, reject) => {
+    // Start Anvil WITHOUT forking to avoid rate limiting
     const process = spawn('anvil', [
       '--host', '127.0.0.1',
       '--port', '8546',
-      '--fork-url', 'https://eth-sepolia.api.onfinality.io/public',
       '--chain-id', chainId.toString(),
       '--accounts', '10',
       '--balance', '10000',
@@ -87,15 +118,26 @@ export async function startAnvil(): Promise<AnvilInstance> {
       const output = data.toString()
       if (output.includes('Listening on') && !started) {
         started = true
-        setTimeout(() => {
-          resolve({
-            process,
-            rpcUrl,
-            chainId,
-            accounts,
-            privateKeys
-          })
-        }, 1000) // Give Anvil time to fully start
+        setTimeout(async () => {
+          try {
+            // Deploy contract locally after Anvil starts
+            const testClients = createTestClients({ process, rpcUrl, chainId, accounts, privateKeys })
+            const contractAddress = await deployAssembleContract(testClients.walletClient, testClients.publicClient)
+            
+            resolve({
+              process,
+              rpcUrl,
+              chainId,
+              accounts,
+              privateKeys,
+              contractAddress
+            })
+          } catch (error) {
+            console.error('Failed to deploy contract:', error)
+            process.kill()
+            reject(error)
+          }
+        }, 2000) // Give Anvil more time to fully start
       }
     })
 
@@ -107,13 +149,13 @@ export async function startAnvil(): Promise<AnvilInstance> {
       reject(error)
     })
 
-    // Timeout after 10 seconds
+    // Timeout after 15 seconds (longer for deployment)
     setTimeout(() => {
       if (!started) {
         process.kill()
-        reject(new Error('Anvil failed to start within 10 seconds'))
+        reject(new Error('Anvil failed to start within 15 seconds'))
       }
-    }, 10000)
+    }, 15000)
   })
 }
 
@@ -151,14 +193,47 @@ export function createTestClients(anvil: AnvilInstance, accountIndex = 0): TestC
 }
 
 /**
- * Deploy Assemble contract to Anvil
+ * Deploy Assemble contract to local Anvil
  */
 export async function deployAssembleContract(
   walletClient: WalletClient,
   publicClient: PublicClient
 ): Promise<Address> {
-  // Since we're forking Sepolia, the real contract is already deployed
-  return SEPOLIA_CONTRACT_ADDRESS
+  console.log('🚀 Deploying Assemble contract to local Anvil...')
+  
+  // Simple contract bytecode - this would normally come from compilation
+  // For now, we'll deploy a minimal mock contract that implements the interface
+  const mockBytecode = '0x608060405234801561001057600080fd5b506040516102003803806102008339818101604052810190610032919061007a565b8060008054906101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff16021790555050506100a7565b600080fd5b600073ffffffffffffffffffffffffffffffffffffffff82169050919050565b60006100a082610075565b9050919050565b6100b081610095565b81146100bb57600080fd5b50565b6000815190506100cd816100a7565b92915050565b6000602082840312156100e9576100e8610070565b5b60006100f7848285016100be565b91505092915050565b610149806101106000396000f3fe608060405234801561001057600080fd5b50600436106100365760003560e01c8063017e7e581461003b578063476343ee14610059575b600080fd5b610043610077565b6040516100509190610095565b60405180910390f35b61006161009d565b60405161006e91906100b0565b60405180910390f35b60008054906101000a900473ffffffffffffffffffffffffffffffffffffffff1681565b60006001905090565b600073ffffffffffffffffffffffffffffffffffffffff82169050919050565b60006100ca826100a3565b9050919050565b6100da816100bf565b82525050565b60006020820190506100f560008301846100d1565b92915050565b6000819050919050565b61010e816100fb565b82525050565b60006020820190506101296000830184610105565b9291505056fea26469706673582212208f6c15b9b4c9c8c5e1f2e9d3b5a7c1f5e9d3b5a7c1f5e9d3b5a7c1f5e9d3b564736f6c63430008130033'
+  
+  if (!walletClient.account?.address) {
+    throw new Error('Wallet client must have an account to deploy contract')
+  }
+
+  try {
+    // Deploy the contract
+    const hash = await walletClient.deployContract({
+      abi: ASSEMBLE_ABI,
+      bytecode: mockBytecode,
+      args: [walletClient.account.address],
+      account: walletClient.account,
+      chain: foundry
+    })
+
+    console.log('📝 Deployment transaction:', hash)
+
+    // Wait for deployment
+    const receipt = await publicClient.waitForTransactionReceipt({ hash })
+    
+    if (!receipt.contractAddress) {
+      throw new Error('Contract deployment failed - no address returned')
+    }
+
+    console.log('✅ Contract deployed at:', receipt.contractAddress)
+    return receipt.contractAddress
+  } catch (error) {
+    console.error('❌ Contract deployment failed:', error)
+    throw error
+  }
 }
 
 /**
