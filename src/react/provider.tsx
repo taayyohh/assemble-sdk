@@ -1,7 +1,6 @@
 import React, { createContext, useContext, ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AssembleClient } from '../core/client'
-import type { AssembleClientConfig } from '../types'
 
 /**
  * Assemble Context

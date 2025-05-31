@@ -2,7 +2,6 @@ import { useQuery, useMutation, useQueryClient, UseQueryOptions, UseMutationOpti
 import { Address, Hash } from 'viem'
 import { useAssemble } from '../provider'
 import type { 
-  Ticket, 
   TicketsResponse, 
   PurchaseTicketsParams,
   RefundAmounts 
@@ -131,7 +130,7 @@ export function usePurchaseTickets(
       }
       return client.tickets.purchaseTickets(params, value)
     },
-    onSuccess: (_, { params }) => {
+    onSuccess: (_, { params: _params }) => {
       // Invalidate ticket-related queries
       queryClient.invalidateQueries({ queryKey: ticketKeys.all })
       // Also invalidate event queries since ticket sales affect events

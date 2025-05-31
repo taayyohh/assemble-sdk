@@ -1,5 +1,5 @@
 import { Address, Hash } from 'viem'
-import { AssembleClientConfig, Ticket, PurchaseTicketsParams, TicketsResponse, CheckInParams, RefundAmounts } from '../types'
+import { AssembleClientConfig, Ticket, PurchaseTicketsParams, TicketsResponse, RefundAmounts } from '../types'
 import { WalletError, ContractError, ValidationError } from '../errors'
 import { validateAddress, validateBasisPoints } from '../utils'
 import { ASSEMBLE_ABI } from '../constants/abi'

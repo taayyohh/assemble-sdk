@@ -1,4 +1,4 @@
-import { Address, Hash } from 'viem'
+import { Address } from 'viem'
 
 /**
  * Core Event Types

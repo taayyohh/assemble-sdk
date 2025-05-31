@@ -1,6 +1,6 @@
 import { Address, Hash } from 'viem'
 import { AssembleClientConfig } from '../types'
-import { WalletError, ContractError, ValidationError } from '../errors'
+import { WalletError, ContractError } from '../errors'
 import { validateAddress, validateBasisPoints } from '../utils'
 import { ASSEMBLE_ABI } from '../constants/abi'
 

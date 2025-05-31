@@ -2,7 +2,6 @@ import { useQuery, useMutation, useQueryClient, UseQueryOptions, UseMutationOpti
 import { Address, Hash } from 'viem'
 import { useAssemble } from '../provider'
 import type { 
-  Friend, 
   Comment, 
   CommentsResponse,
   PaymentSplit 

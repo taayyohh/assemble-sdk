@@ -1,5 +1,5 @@
 import { Address, Hash } from 'viem'
-import { AssembleClientConfig, Event, CreateEventParams, EventsResponse, RSVPStatus, InviteParams } from '../types'
+import { AssembleClientConfig, Event, CreateEventParams, EventsResponse, RSVPStatus } from '../types'
 import { WalletError, ContractError, ValidationError } from '../errors'
 import { validateEventTiming, validateCapacity, validatePaymentSplits, validateAddress } from '../utils'
 import { ASSEMBLE_ABI } from '../constants/abi'
@@ -85,7 +85,7 @@ export class EventManager {
 
       // Contract structure based on ABI:
       // [basePrice, startTime, capacity, venueId, visibility, status]
-      const [basePrice, startTime, capacity, venueId, visibility, status] = eventData
+      const [, startTime, capacity, venueId, visibility] = eventData
 
       return {
         id: eventId,
