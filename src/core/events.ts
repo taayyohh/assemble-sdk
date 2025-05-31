@@ -54,31 +54,52 @@ export class EventManager {
    */
   async getEvent(eventId: bigint): Promise<Event | null> {
     try {
-      const result = await this.config.publicClient.readContract({
+      // Get basic event data from events mapping
+      const eventData = await this.config.publicClient.readContract({
         address: this.config.contractAddress,
         abi: ASSEMBLE_ABI,
         functionName: 'events',
         args: [eventId],
-      })
+      }) as any
 
-      // Format result according to Event interface
-      if (!result || (result as any).organizer === '0x0000000000000000000000000000000000000000') {
+      // Get organizer from separate mapping
+      const organizer = await this.config.publicClient.readContract({
+        address: this.config.contractAddress,
+        abi: ASSEMBLE_ABI,
+        functionName: 'eventOrganizers',
+        args: [eventId],
+      }) as Address
+
+      // Get cancellation status from separate mapping
+      const isCancelled = await this.config.publicClient.readContract({
+        address: this.config.contractAddress,
+        abi: ASSEMBLE_ABI,
+        functionName: 'eventCancelled',
+        args: [eventId],
+      }) as boolean
+
+      // Check if event exists (organizer is zero address for non-existent events)
+      if (!organizer || organizer === '0x0000000000000000000000000000000000000000') {
         return null
       }
 
-      const eventData = result as any
+      // Contract structure based on ABI:
+      // [basePrice, startTime, capacity, venueId, visibility, status]
+      const [basePrice, startTime, capacity, venueId, visibility, status] = eventData
+
       return {
         id: eventId,
-        title: eventData.title || '',
-        description: eventData.description || '',
-        imageUri: eventData.imageUri || '',
-        startTime: eventData.startTime || 0n,
-        endTime: eventData.endTime || 0n,
-        capacity: Number(eventData.capacity || 0),
-        venueId: eventData.venueId || 0n,
-        visibility: eventData.visibility || 0,
-        organizer: eventData.organizer,
-        isCancelled: eventData.isCancelled || false,
+        // Note: title, description, imageUri, endTime are not available from contract getters
+        title: `Event #${eventId}`, // Fallback since metadata not available
+        description: '', // Not available from contract
+        imageUri: '', // Not available from contract  
+        startTime: BigInt(startTime),
+        endTime: BigInt(startTime) + 7200n, // Fallback: assume 2 hours duration
+        capacity: Number(capacity),
+        venueId: BigInt(venueId),
+        visibility: Number(visibility),
+        organizer,
+        isCancelled: Boolean(isCancelled),
       } as Event
     } catch (error) {
       throw new ContractError('Failed to get event', error instanceof Error ? error.message : 'Unknown error')
@@ -171,14 +192,14 @@ export class EventManager {
    */
   async isEventOrganizer(eventId: bigint, address: Address): Promise<boolean> {
     try {
-      const result = await this.config.publicClient.readContract({
+      const organizer = await this.config.publicClient.readContract({
         address: this.config.contractAddress,
         abi: ASSEMBLE_ABI,
         functionName: 'eventOrganizers',
         args: [eventId],
-      })
+      }) as Address
 
-      return result === address
+      return organizer?.toLowerCase() === address.toLowerCase()
     } catch (error) {
       throw new ContractError('Failed to check event organizer', error instanceof Error ? error.message : 'Unknown error')
     }
@@ -271,10 +292,6 @@ export class EventManager {
       throw new WalletError('Wallet not connected')
     }
 
-    if (!Object.values(RSVPStatus).includes(status)) {
-      throw new ValidationError('Invalid RSVP status')
-    }
-
     try {
       const hash = await this.config.walletClient.writeContract({
         address: this.config.contractAddress,
@@ -320,7 +337,7 @@ export class EventManager {
         address: this.config.contractAddress,
         abi: ASSEMBLE_ABI,
         functionName: 'hasAttended',
-        args: [eventId, user],
+        args: [user, eventId],
       })
 
       return result as boolean

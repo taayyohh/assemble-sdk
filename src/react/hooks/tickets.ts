@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient, UseQueryOptions, UseMutationOptions } from '@tanstack/react-query'
-import { Address } from 'viem'
+import { Address, Hash } from 'viem'
 import { useAssemble } from '../provider'
 import type { 
   Ticket, 
@@ -119,7 +119,7 @@ export function useTotalSupply(
  * Mutation hook to purchase tickets
  */
 export function usePurchaseTickets(
-  options?: UseMutationOptions<string, Error, { params: PurchaseTicketsParams; value: bigint }>
+  options?: UseMutationOptions<Hash, Error, { params: PurchaseTicketsParams; value: bigint }>
 ) {
   const { client, isConnected } = useAssemble()
   const queryClient = useQueryClient()
@@ -145,7 +145,7 @@ export function usePurchaseTickets(
  * Mutation hook to transfer tickets
  */
 export function useTransferTickets(
-  options?: UseMutationOptions<string, Error, { 
+  options?: UseMutationOptions<Hash, Error, { 
     to: Address; 
     eventId: bigint; 
     tierId: number; 
@@ -174,7 +174,7 @@ export function useTransferTickets(
  * Mutation hook to use/check-in a ticket
  */
 export function useTicket(
-  options?: UseMutationOptions<string, Error, { eventId: bigint; tierId: number }>
+  options?: UseMutationOptions<Hash, Error, { eventId: bigint; tierId: number }>
 ) {
   const { client, isConnected } = useAssemble()
   const queryClient = useQueryClient()
@@ -203,7 +203,7 @@ export function useTicket(
  * Mutation hook to check in with ticket
  */
 export function useCheckInWithTicket(
-  options?: UseMutationOptions<string, Error, { eventId: bigint; ticketTokenId: bigint }>
+  options?: UseMutationOptions<Hash, Error, { eventId: bigint; ticketTokenId: bigint }>
 ) {
   const { client, isConnected } = useAssemble()
   const queryClient = useQueryClient()
@@ -231,7 +231,7 @@ export function useCheckInWithTicket(
  * Mutation hook to claim refund
  */
 export function useClaimRefund(
-  options?: UseMutationOptions<string, Error, bigint>
+  options?: UseMutationOptions<Hash, Error, bigint>
 ) {
   const { client, isConnected } = useAssemble()
   const queryClient = useQueryClient()

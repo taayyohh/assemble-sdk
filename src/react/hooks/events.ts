@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient, UseQueryOptions, UseMutationOptions } from '@tanstack/react-query'
-import { Address } from 'viem'
+import { Address, Hash } from 'viem'
 import { useAssemble } from '../provider'
 import type { 
   Event, 
@@ -112,7 +112,7 @@ export function useEventAttendance(
  * Mutation hook to create an event
  */
 export function useCreateEvent(
-  options?: UseMutationOptions<string, Error, CreateEventParams>
+  options?: UseMutationOptions<Hash, Error, CreateEventParams>
 ) {
   const { client, isConnected } = useAssemble()
   const queryClient = useQueryClient()
@@ -136,7 +136,7 @@ export function useCreateEvent(
  * Mutation hook to update RSVP status
  */
 export function useUpdateRSVP(
-  options?: UseMutationOptions<string, Error, { eventId: bigint; status: RSVPStatus }>
+  options?: UseMutationOptions<Hash, Error, { eventId: bigint; status: RSVPStatus }>
 ) {
   const { client, isConnected } = useAssemble()
   const queryClient = useQueryClient()
@@ -164,7 +164,7 @@ export function useUpdateRSVP(
  * Mutation hook to cancel an event
  */
 export function useCancelEvent(
-  options?: UseMutationOptions<string, Error, bigint>
+  options?: UseMutationOptions<Hash, Error, bigint>
 ) {
   const { client, isConnected } = useAssemble()
   const queryClient = useQueryClient()
@@ -189,7 +189,7 @@ export function useCancelEvent(
  * Mutation hook to invite users to an event
  */
 export function useInviteToEvent(
-  options?: UseMutationOptions<string, Error, { eventId: bigint; invitees: Address[] }>
+  options?: UseMutationOptions<Hash, Error, { eventId: bigint; invitees: Address[] }>
 ) {
   const { client, isConnected } = useAssemble()
 

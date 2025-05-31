@@ -223,15 +223,27 @@ export class SocialManager {
    */
   async getEventComments(eventId: bigint): Promise<CommentsResponse> {
     try {
-      const result = await this.config.publicClient.readContract({
+      // Get comment IDs from the contract (returns uint256[])
+      const commentIds = await this.config.publicClient.readContract({
         address: this.config.contractAddress,
         abi: ASSEMBLE_ABI,
         functionName: 'getEventComments',
         args: [eventId],
-      })
+      }) as bigint[]
 
-      // Format and organize comments with replies
-      const comments = result as Comment[]
+      // Fetch individual comments by ID
+      const comments: Comment[] = []
+      for (const commentId of commentIds) {
+        try {
+          const comment = await this.getComment(commentId)
+          if (comment) {
+            comments.push({ ...comment, id: commentId })
+          }
+        } catch (error) {
+          // Skip comments that can't be fetched
+          console.warn(`Failed to fetch comment ${commentId}:`, error)
+        }
+      }
       
       // Separate top-level comments and replies
       const topLevelComments = comments.filter(c => c.parentId === 0n)
@@ -262,9 +274,24 @@ export class SocialManager {
         abi: ASSEMBLE_ABI,
         functionName: 'getComment',
         args: [commentId],
-      })
+      }) as any
 
-      return result as Comment | null
+      if (!result || !result.author || result.author === '0x0000000000000000000000000000000000000000') {
+        return null
+      }
+
+      // Contract returns: [author, timestamp, content, parentId, isDeleted, likes]
+      const { author, timestamp, content, parentId, isDeleted, likes } = result
+
+      return {
+        id: commentId,
+        author: author as Address,
+        timestamp: BigInt(timestamp),
+        content: content as string,
+        parentId: BigInt(parentId),
+        isDeleted: Boolean(isDeleted),
+        likes: Number(likes),
+      } as Comment
     } catch (error) {
       throw new ContractError('Failed to get comment', error instanceof Error ? error.message : 'Unknown error')
     }
@@ -352,9 +379,13 @@ export class SocialManager {
         abi: ASSEMBLE_ABI,
         functionName: 'getPaymentSplits',
         args: [eventId],
-      })
+      }) as any[]
 
-      return result as PaymentSplit[]
+      // Contract returns array of tuples: [{recipient, basisPoints}, ...]
+      return result.map(split => ({
+        recipient: split.recipient as Address,
+        basisPoints: Number(split.basisPoints),
+      }))
     } catch (error) {
       throw new ContractError('Failed to get payment splits', error instanceof Error ? error.message : 'Unknown error')
     }

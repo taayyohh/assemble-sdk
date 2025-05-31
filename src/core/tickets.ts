@@ -38,10 +38,10 @@ export class TicketManager {
         functionName: 'purchaseTickets',
         args: [
           params.eventId,
-          params.tierId,
-          params.quantity,
+          BigInt(params.tierId),
+          BigInt(params.quantity),
           params.referrer || '0x0000000000000000000000000000000000000000',
-          params.platformFeeBps || 0,
+          BigInt(params.platformFeeBps || 0),
         ],
         value,
       })
@@ -61,9 +61,10 @@ export class TicketManager {
         address: this.config.contractAddress,
         abi: ASSEMBLE_ABI,
         functionName: 'calculatePrice',
-        args: [eventId, tierId, quantity],
+        args: [eventId, BigInt(tierId), BigInt(quantity)], // Convert to BigInt for contract
       })
 
+      // Contract returns a single uint256 totalPrice
       return result as bigint
     } catch (error) {
       throw new ContractError('Failed to calculate price', error instanceof Error ? error.message : 'Unknown error')

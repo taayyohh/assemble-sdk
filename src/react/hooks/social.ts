@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient, UseQueryOptions, UseMutationOptions } from '@tanstack/react-query'
-import { Address } from 'viem'
+import { Address, Hash } from 'viem'
 import { useAssemble } from '../provider'
 import type { 
   Friend, 
@@ -151,7 +151,7 @@ export function usePaymentSplits(
  * Mutation hook to add a friend
  */
 export function useAddFriend(
-  options?: UseMutationOptions<string, Error, Address>
+  options?: UseMutationOptions<Hash, Error, Address>
 ) {
   const { client, isConnected } = useAssemble()
   const queryClient = useQueryClient()
@@ -175,7 +175,7 @@ export function useAddFriend(
  * Mutation hook to remove a friend
  */
 export function useRemoveFriend(
-  options?: UseMutationOptions<string, Error, Address>
+  options?: UseMutationOptions<Hash, Error, Address>
 ) {
   const { client, isConnected } = useAssemble()
   const queryClient = useQueryClient()
@@ -199,7 +199,7 @@ export function useRemoveFriend(
  * Mutation hook to post a comment
  */
 export function usePostComment(
-  options?: UseMutationOptions<string, Error, { 
+  options?: UseMutationOptions<Hash, Error, { 
     eventId: bigint; 
     content: string; 
     parentId?: bigint 
@@ -227,7 +227,7 @@ export function usePostComment(
  * Mutation hook to like a comment
  */
 export function useLikeComment(
-  options?: UseMutationOptions<string, Error, bigint>
+  options?: UseMutationOptions<Hash, Error, bigint>
 ) {
   const { client, isConnected } = useAssemble()
   const queryClient = useQueryClient()
@@ -256,7 +256,7 @@ export function useLikeComment(
  * Mutation hook to unlike a comment
  */
 export function useUnlikeComment(
-  options?: UseMutationOptions<string, Error, bigint>
+  options?: UseMutationOptions<Hash, Error, bigint>
 ) {
   const { client, isConnected } = useAssemble()
   const queryClient = useQueryClient()
@@ -285,7 +285,7 @@ export function useUnlikeComment(
  * Mutation hook to tip an event
  */
 export function useTipEvent(
-  options?: UseMutationOptions<string, Error, { 
+  options?: UseMutationOptions<Hash, Error, { 
     eventId: bigint; 
     amount: bigint; 
     referrer?: Address; 
@@ -317,7 +317,7 @@ export function useTipEvent(
  * Mutation hook to delete a comment
  */
 export function useDeleteComment(
-  options?: UseMutationOptions<string, Error, { commentId: bigint; eventId: bigint }>
+  options?: UseMutationOptions<Hash, Error, { commentId: bigint; eventId: bigint }>
 ) {
   const { client, isConnected } = useAssemble()
   const queryClient = useQueryClient()

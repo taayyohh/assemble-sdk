@@ -2438,25 +2438,6 @@ var require_abi = __commonJS({
   }
 });
 
-// src/types/index.ts
-var EventVisibility = /* @__PURE__ */ ((EventVisibility2) => {
-  EventVisibility2[EventVisibility2["PUBLIC"] = 0] = "PUBLIC";
-  EventVisibility2[EventVisibility2["PRIVATE"] = 1] = "PRIVATE";
-  EventVisibility2[EventVisibility2["INVITE_ONLY"] = 2] = "INVITE_ONLY";
-  return EventVisibility2;
-})(EventVisibility || {});
-var RSVPStatus = /* @__PURE__ */ ((RSVPStatus2) => {
-  RSVPStatus2[RSVPStatus2["NOT_GOING"] = 0] = "NOT_GOING";
-  RSVPStatus2[RSVPStatus2["MAYBE"] = 1] = "MAYBE";
-  RSVPStatus2[RSVPStatus2["GOING"] = 2] = "GOING";
-  return RSVPStatus2;
-})(RSVPStatus || {});
-var RefundType = /* @__PURE__ */ ((RefundType2) => {
-  RefundType2[RefundType2["TICKET"] = 0] = "TICKET";
-  RefundType2[RefundType2["TIP"] = 1] = "TIP";
-  return RefundType2;
-})(RefundType || {});
-
 // src/errors/index.ts
 var AssembleError = class extends Error {
   constructor(message, code) {
@@ -2547,11 +2528,15 @@ function parseEther(ether) {
 }
 function validateEventTiming(startTime, endTime) {
   const now = BigInt(Math.floor(Date.now() / 1e3));
-  if (startTime <= now) {
-    throw new ValidationError("Event start time must be in the future");
-  }
   if (endTime <= startTime) {
     throw new ValidationError("Event end time must be after start time");
+  }
+  if (endTime <= now) {
+    throw new ValidationError("Event end time must be in the future");
+  }
+  const twentyFourHoursAgo = now - 86400n;
+  if (startTime < twentyFourHoursAgo) {
+    throw new ValidationError("Event start time is too far in the past (max 24 hours ago)");
   }
 }
 function validateCapacity(capacity) {
@@ -2621,28 +2606,45 @@ var EventManager = class {
    */
   async getEvent(eventId) {
     try {
-      const result = await this.config.publicClient.readContract({
+      const eventData = await this.config.publicClient.readContract({
         address: this.config.contractAddress,
         abi: ASSEMBLE_ABI,
         functionName: "events",
         args: [eventId]
       });
-      if (!result || result.organizer === "0x0000000000000000000000000000000000000000") {
+      const organizer = await this.config.publicClient.readContract({
+        address: this.config.contractAddress,
+        abi: ASSEMBLE_ABI,
+        functionName: "eventOrganizers",
+        args: [eventId]
+      });
+      const isCancelled = await this.config.publicClient.readContract({
+        address: this.config.contractAddress,
+        abi: ASSEMBLE_ABI,
+        functionName: "eventCancelled",
+        args: [eventId]
+      });
+      if (!organizer || organizer === "0x0000000000000000000000000000000000000000") {
         return null;
       }
-      const eventData = result;
+      const [basePrice, startTime, capacity, venueId, visibility, status] = eventData;
       return {
         id: eventId,
-        title: eventData.title || "",
-        description: eventData.description || "",
-        imageUri: eventData.imageUri || "",
-        startTime: eventData.startTime || 0n,
-        endTime: eventData.endTime || 0n,
-        capacity: Number(eventData.capacity || 0),
-        venueId: eventData.venueId || 0n,
-        visibility: eventData.visibility || 0,
-        organizer: eventData.organizer,
-        isCancelled: eventData.isCancelled || false
+        // Note: title, description, imageUri, endTime are not available from contract getters
+        title: `Event #${eventId}`,
+        // Fallback since metadata not available
+        description: "",
+        // Not available from contract
+        imageUri: "",
+        // Not available from contract  
+        startTime: BigInt(startTime),
+        endTime: BigInt(startTime) + 7200n,
+        // Fallback: assume 2 hours duration
+        capacity: Number(capacity),
+        venueId: BigInt(venueId),
+        visibility: Number(visibility),
+        organizer,
+        isCancelled: Boolean(isCancelled)
       };
     } catch (error) {
       throw new ContractError("Failed to get event", error instanceof Error ? error.message : "Unknown error");
@@ -2719,13 +2721,13 @@ var EventManager = class {
    */
   async isEventOrganizer(eventId, address) {
     try {
-      const result = await this.config.publicClient.readContract({
+      const organizer = await this.config.publicClient.readContract({
         address: this.config.contractAddress,
         abi: ASSEMBLE_ABI,
         functionName: "eventOrganizers",
         args: [eventId]
       });
-      return result === address;
+      return organizer?.toLowerCase() === address.toLowerCase();
     } catch (error) {
       throw new ContractError("Failed to check event organizer", error instanceof Error ? error.message : "Unknown error");
     }
@@ -2802,9 +2804,6 @@ var EventManager = class {
     if (!this.config.walletClient) {
       throw new WalletError("Wallet not connected");
     }
-    if (!Object.values(RSVPStatus).includes(status)) {
-      throw new ValidationError("Invalid RSVP status");
-    }
     try {
       const hash = await this.config.walletClient.writeContract({
         address: this.config.contractAddress,
@@ -2844,7 +2843,7 @@ var EventManager = class {
         address: this.config.contractAddress,
         abi: ASSEMBLE_ABI,
         functionName: "hasAttended",
-        args: [eventId, user]
+        args: [user, eventId]
       });
       return result;
     } catch (error) {
@@ -2897,10 +2896,10 @@ var TicketManager = class {
         functionName: "purchaseTickets",
         args: [
           params.eventId,
-          params.tierId,
-          params.quantity,
+          BigInt(params.tierId),
+          BigInt(params.quantity),
           params.referrer || "0x0000000000000000000000000000000000000000",
-          params.platformFeeBps || 0
+          BigInt(params.platformFeeBps || 0)
         ],
         value
       });
@@ -2918,7 +2917,8 @@ var TicketManager = class {
         address: this.config.contractAddress,
         abi: ASSEMBLE_ABI,
         functionName: "calculatePrice",
-        args: [eventId, tierId, quantity]
+        args: [eventId, BigInt(tierId), BigInt(quantity)]
+        // Convert to BigInt for contract
       });
       return result;
     } catch (error) {
@@ -3008,13 +3008,12 @@ var TicketManager = class {
       const hash = await this.config.walletClient.writeContract({
         address: this.config.contractAddress,
         abi: ASSEMBLE_ABI,
-        functionName: "safeTransferFrom",
+        functionName: "transfer",
         args: [
           this.config.walletClient.account.address,
           to,
           tokenId,
-          amount,
-          "0x"
+          BigInt(amount)
         ]
       });
       return hash;
@@ -3392,13 +3391,23 @@ var SocialManager = class {
    */
   async getEventComments(eventId) {
     try {
-      const result = await this.config.publicClient.readContract({
+      const commentIds = await this.config.publicClient.readContract({
         address: this.config.contractAddress,
         abi: ASSEMBLE_ABI,
         functionName: "getEventComments",
         args: [eventId]
       });
-      const comments = result;
+      const comments = [];
+      for (const commentId of commentIds) {
+        try {
+          const comment = await this.getComment(commentId);
+          if (comment) {
+            comments.push({ ...comment, id: commentId });
+          }
+        } catch (error) {
+          console.warn(`Failed to fetch comment ${commentId}:`, error);
+        }
+      }
       const topLevelComments = comments.filter((c) => c.parentId === 0n);
       const replies = comments.filter((c) => c.parentId !== 0n);
       const commentsWithReplies = topLevelComments.map((comment) => ({
@@ -3424,7 +3433,19 @@ var SocialManager = class {
         functionName: "getComment",
         args: [commentId]
       });
-      return result;
+      if (!result || !result.author || result.author === "0x0000000000000000000000000000000000000000") {
+        return null;
+      }
+      const { author, timestamp, content, parentId, isDeleted, likes } = result;
+      return {
+        id: commentId,
+        author,
+        timestamp: BigInt(timestamp),
+        content,
+        parentId: BigInt(parentId),
+        isDeleted: Boolean(isDeleted),
+        likes: Number(likes)
+      };
     } catch (error) {
       throw new ContractError("Failed to get comment", error instanceof Error ? error.message : "Unknown error");
     }
@@ -3500,7 +3521,10 @@ var SocialManager = class {
         functionName: "getPaymentSplits",
         args: [eventId]
       });
-      return result;
+      return result.map((split) => ({
+        recipient: split.recipient,
+        basisPoints: Number(split.basisPoints)
+      }));
     } catch (error) {
       throw new ContractError("Failed to get payment splits", error instanceof Error ? error.message : "Unknown error");
     }
@@ -3821,6 +3845,25 @@ var AssembleClient = class _AssembleClient {
     this.config.walletClient = void 0;
   }
 };
+
+// src/types/index.ts
+var EventVisibility = /* @__PURE__ */ ((EventVisibility2) => {
+  EventVisibility2[EventVisibility2["PUBLIC"] = 0] = "PUBLIC";
+  EventVisibility2[EventVisibility2["PRIVATE"] = 1] = "PRIVATE";
+  EventVisibility2[EventVisibility2["INVITE_ONLY"] = 2] = "INVITE_ONLY";
+  return EventVisibility2;
+})(EventVisibility || {});
+var RSVPStatus = /* @__PURE__ */ ((RSVPStatus2) => {
+  RSVPStatus2[RSVPStatus2["NOT_GOING"] = 0] = "NOT_GOING";
+  RSVPStatus2[RSVPStatus2["MAYBE"] = 1] = "MAYBE";
+  RSVPStatus2[RSVPStatus2["GOING"] = 2] = "GOING";
+  return RSVPStatus2;
+})(RSVPStatus || {});
+var RefundType = /* @__PURE__ */ ((RefundType2) => {
+  RefundType2[RefundType2["TICKET"] = 0] = "TICKET";
+  RefundType2[RefundType2["TIP"] = 1] = "TIP";
+  return RefundType2;
+})(RefundType || {});
 var ASSEMBLE_CONTRACT_ADDRESS = "0x0000000000000000000000000000000000000000";
 var SUPPORTED_CHAINS = {
   mainnet,
