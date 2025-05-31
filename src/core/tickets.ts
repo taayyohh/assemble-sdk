@@ -177,13 +177,12 @@ export class TicketManager {
       const hash = await this.config.walletClient.writeContract({
         address: this.config.contractAddress,
         abi: ASSEMBLE_ABI,
-        functionName: 'safeTransferFrom',
+        functionName: 'transfer',
         args: [
           this.config.walletClient.account!.address,
           to,
           tokenId,
-          amount,
-          '0x',
+          BigInt(amount),
         ],
       })
 

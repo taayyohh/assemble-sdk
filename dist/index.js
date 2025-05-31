@@ -1,6 +1,4 @@
-'use strict';
-
-var chains = require('viem/chains');
+import { baseSepolia, base, sepolia, mainnet } from 'viem/chains';
 
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __commonJS = (cb, mod) => function __require() {
@@ -2441,12 +2439,23 @@ var require_abi = __commonJS({
 });
 
 // src/types/index.ts
+var EventVisibility = /* @__PURE__ */ ((EventVisibility2) => {
+  EventVisibility2[EventVisibility2["PUBLIC"] = 0] = "PUBLIC";
+  EventVisibility2[EventVisibility2["PRIVATE"] = 1] = "PRIVATE";
+  EventVisibility2[EventVisibility2["INVITE_ONLY"] = 2] = "INVITE_ONLY";
+  return EventVisibility2;
+})(EventVisibility || {});
 var RSVPStatus = /* @__PURE__ */ ((RSVPStatus2) => {
   RSVPStatus2[RSVPStatus2["NOT_GOING"] = 0] = "NOT_GOING";
   RSVPStatus2[RSVPStatus2["MAYBE"] = 1] = "MAYBE";
   RSVPStatus2[RSVPStatus2["GOING"] = 2] = "GOING";
   return RSVPStatus2;
 })(RSVPStatus || {});
+var RefundType = /* @__PURE__ */ ((RefundType2) => {
+  RefundType2[RefundType2["TICKET"] = 0] = "TICKET";
+  RefundType2[RefundType2["TIP"] = 1] = "TIP";
+  return RefundType2;
+})(RefundType || {});
 
 // src/errors/index.ts
 var AssembleError = class extends Error {
@@ -3705,6 +3714,38 @@ var ProtocolManager = class {
       throw new ContractError("Failed to get refund claim deadline", error instanceof Error ? error.message : "Unknown error");
     }
   }
+  /**
+   * Get current protocol fee in basis points
+   */
+  async getProtocolFee() {
+    try {
+      const result = await this.config.publicClient.readContract({
+        address: this.config.contractAddress,
+        abi: ASSEMBLE_ABI,
+        functionName: "protocolFeeBps",
+        args: []
+      });
+      return Number(result);
+    } catch (error) {
+      throw new ContractError("Failed to get protocol fee", error instanceof Error ? error.message : "Unknown error");
+    }
+  }
+  /**
+   * Get current fee recipient address
+   */
+  async getFeeTo() {
+    try {
+      const result = await this.config.publicClient.readContract({
+        address: this.config.contractAddress,
+        abi: ASSEMBLE_ABI,
+        functionName: "feeTo",
+        args: []
+      });
+      return result;
+    } catch (error) {
+      throw new ContractError("Failed to get fee recipient", error instanceof Error ? error.message : "Unknown error");
+    }
+  }
 };
 
 // src/core/client.ts
@@ -3782,10 +3823,10 @@ var AssembleClient = class _AssembleClient {
 };
 var ASSEMBLE_CONTRACT_ADDRESS = "0x0000000000000000000000000000000000000000";
 var SUPPORTED_CHAINS = {
-  mainnet: chains.mainnet,
-  sepolia: chains.sepolia,
-  base: chains.base,
-  baseSepolia: chains.baseSepolia
+  mainnet,
+  sepolia,
+  base,
+  baseSepolia
 };
 var CHAIN_CONTRACT_ADDRESSES = {
   mainnet: ASSEMBLE_CONTRACT_ADDRESS,
@@ -3803,38 +3844,6 @@ function getContractAddress(chain) {
   return CHAIN_CONTRACT_ADDRESSES[chainName];
 }
 
-exports.ASSEMBLE_ABI = ASSEMBLE_ABI;
-exports.ASSEMBLE_CONTRACT_ADDRESS = ASSEMBLE_CONTRACT_ADDRESS;
-exports.AssembleClient = AssembleClient;
-exports.AssembleError = AssembleError;
-exports.CHAIN_CONTRACT_ADDRESSES = CHAIN_CONTRACT_ADDRESSES;
-exports.ContractError = ContractError;
-exports.EventManager = EventManager;
-exports.NetworkError = NetworkError;
-exports.ProtocolManager = ProtocolManager;
-exports.SUPPORTED_CHAINS = SUPPORTED_CHAINS;
-exports.SocialManager = SocialManager;
-exports.TicketManager = TicketManager;
-exports.ValidationError = ValidationError;
-exports.WalletError = WalletError;
-exports.basisPointsToPercent = basisPointsToPercent;
-exports.formatEther = formatEther;
-exports.fromUnixTimestamp = fromUnixTimestamp;
-exports.getContractAddress = getContractAddress;
-exports.isAssembleError = isAssembleError;
-exports.isContractError = isContractError;
-exports.isNetworkError = isNetworkError;
-exports.isValidAddress = isValidAddress;
-exports.isValidTimestamp = isValidTimestamp;
-exports.isValidationError = isValidationError;
-exports.isWalletError = isWalletError;
-exports.parseEther = parseEther;
-exports.percentToBasisPoints = percentToBasisPoints;
-exports.toUnixTimestamp = toUnixTimestamp;
-exports.validateAddress = validateAddress;
-exports.validateBasisPoints = validateBasisPoints;
-exports.validateCapacity = validateCapacity;
-exports.validateEventTiming = validateEventTiming;
-exports.validatePaymentSplits = validatePaymentSplits;
+export { ASSEMBLE_ABI, ASSEMBLE_CONTRACT_ADDRESS, AssembleClient, AssembleError, CHAIN_CONTRACT_ADDRESSES, ContractError, EventManager, EventVisibility, NetworkError, ProtocolManager, RSVPStatus, RefundType, SUPPORTED_CHAINS, SocialManager, TicketManager, ValidationError, WalletError, basisPointsToPercent, formatEther, fromUnixTimestamp, getContractAddress, isAssembleError, isContractError, isNetworkError, isValidAddress, isValidTimestamp, isValidationError, isWalletError, parseEther, percentToBasisPoints, toUnixTimestamp, validateAddress, validateBasisPoints, validateCapacity, validateEventTiming, validatePaymentSplits };
 //# sourceMappingURL=index.js.map
 //# sourceMappingURL=index.js.map

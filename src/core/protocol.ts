@@ -191,4 +191,40 @@ export class ProtocolManager {
       throw new ContractError('Failed to get refund claim deadline', error instanceof Error ? error.message : 'Unknown error')
     }
   }
+
+  /**
+   * Get current protocol fee in basis points
+   */
+  async getProtocolFee(): Promise<number> {
+    try {
+      const result = await this.config.publicClient.readContract({
+        address: this.config.contractAddress,
+        abi: ASSEMBLE_ABI,
+        functionName: 'protocolFeeBps',
+        args: [],
+      })
+
+      return Number(result)
+    } catch (error) {
+      throw new ContractError('Failed to get protocol fee', error instanceof Error ? error.message : 'Unknown error')
+    }
+  }
+
+  /**
+   * Get current fee recipient address
+   */
+  async getFeeTo(): Promise<Address> {
+    try {
+      const result = await this.config.publicClient.readContract({
+        address: this.config.contractAddress,
+        abi: ASSEMBLE_ABI,
+        functionName: 'feeTo',
+        args: [],
+      })
+
+      return result as Address
+    } catch (error) {
+      throw new ContractError('Failed to get fee recipient', error instanceof Error ? error.message : 'Unknown error')
+    }
+  }
 } 

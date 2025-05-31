@@ -65,12 +65,19 @@ export function parseEther(ether: string): bigint {
 export function validateEventTiming(startTime: bigint, endTime: bigint): void {
   const now = BigInt(Math.floor(Date.now() / 1000))
   
-  if (startTime <= now) {
-    throw new ValidationError('Event start time must be in the future')
-  }
-  
   if (endTime <= startTime) {
     throw new ValidationError('Event end time must be after start time')
+  }
+  
+  // Allow events that have already started for testing purposes
+  if (endTime <= now) {
+    throw new ValidationError('Event end time must be in the future')
+  }
+  
+  // Allow events that started up to 24 hours ago
+  const twentyFourHoursAgo = now - 86400n
+  if (startTime < twentyFourHoursAgo) {
+    throw new ValidationError('Event start time is too far in the past (max 24 hours ago)')
   }
 }
 

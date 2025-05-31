@@ -1,7 +1,7 @@
 import { spawn, ChildProcess } from 'child_process'
 import { createPublicClient, createWalletClient, http, PublicClient, WalletClient, Address } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
-import { foundry } from 'viem/chains'
+import { foundry, sepolia } from 'viem/chains'
 
 export interface AnvilInstance {
   process: ChildProcess
@@ -17,11 +17,45 @@ export interface TestClients {
   account: Address
 }
 
+// Real deployed contract on Sepolia
+export const SEPOLIA_CONTRACT_ADDRESS = '0x9A5F66b4dB17f6546D4A224Eb41468f7C2079B59' as Address
+
+/**
+ * Create clients for testing against real Sepolia deployment
+ */
+export function createSepoliaTestClients(accountIndex = 0): TestClients {
+  // Known Anvil test accounts
+  const privateKeys = [
+    '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80',
+    '0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d',
+    '0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a',
+  ] as `0x${string}`[]
+
+  const account = privateKeyToAccount(privateKeys[accountIndex])
+  
+  const publicClient = createPublicClient({
+    chain: sepolia,
+    transport: http('https://eth-sepolia.api.onfinality.io/public')
+  })
+
+  const walletClient = createWalletClient({
+    chain: sepolia,
+    transport: http('https://eth-sepolia.api.onfinality.io/public'),
+    account
+  })
+
+  return {
+    publicClient,
+    walletClient,
+    account: account.address
+  }
+}
+
 /**
  * Start Anvil instance for testing
  */
 export async function startAnvil(): Promise<AnvilInstance> {
-  const rpcUrl = 'http://127.0.0.1:8545'
+  const rpcUrl = 'http://127.0.0.1:8546'
   const chainId = 31337
 
   // Known Anvil test accounts
@@ -36,7 +70,8 @@ export async function startAnvil(): Promise<AnvilInstance> {
   return new Promise((resolve, reject) => {
     const process = spawn('anvil', [
       '--host', '127.0.0.1',
-      '--port', '8545',
+      '--port', '8546',
+      '--fork-url', 'https://eth-sepolia.api.onfinality.io/public',
       '--chain-id', chainId.toString(),
       '--accounts', '10',
       '--balance', '10000',
@@ -86,7 +121,7 @@ export async function startAnvil(): Promise<AnvilInstance> {
  * Stop Anvil instance
  */
 export function stopAnvil(anvil: AnvilInstance): void {
-  if (anvil.process && !anvil.process.killed) {
+  if (anvil?.process && !anvil.process.killed) {
     anvil.process.kill('SIGTERM')
   }
 }
@@ -122,22 +157,8 @@ export async function deployAssembleContract(
   walletClient: WalletClient,
   publicClient: PublicClient
 ): Promise<Address> {
-  // We'll use the ABI and bytecode from the compiled contract
-  // For now, we'll use a placeholder address until we get the actual bytecode
-  
-  // This would normally deploy the contract:
-  // const hash = await walletClient.deployContract({
-  //   abi: ASSEMBLE_ABI,
-  //   bytecode: ASSEMBLE_BYTECODE,
-  //   args: [walletClient.account!.address] // feeTo address
-  // })
-  
-  // const receipt = await publicClient.waitForTransactionReceipt({ hash })
-  // return receipt.contractAddress!
-
-  // For testing purposes, we'll return a mock address
-  // This should be replaced with actual deployment logic
-  return '0x5FbDB2315678afecb367f032d93F642f64180aa3' as Address
+  // Since we're forking Sepolia, the real contract is already deployed
+  return SEPOLIA_CONTRACT_ADDRESS
 }
 
 /**

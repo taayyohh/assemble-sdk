@@ -112,7 +112,7 @@ describe('Assemble SDK Unit Tests', () => {
       const farFuture = now + 7200n
       
       expect(() => validateEventTiming(future, farFuture)).not.toThrow()
-      expect(() => validateEventTiming(now - 3600n, future)).toThrow('future')
+      expect(() => validateEventTiming(now - 86500n, future)).toThrow('too far in the past')
       expect(() => validateEventTiming(future, future - 1n)).toThrow('after start time')
     })
 

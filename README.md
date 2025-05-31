@@ -1,323 +1,390 @@
-# Assemble Protocol SDK
+# @assemble/sdk
 
-TypeScript SDK for interacting with the [Assemble Protocol](https://github.com/taayyohh/assemble) - a decentralized event management platform with social coordination features.
+> TypeScript SDK for the Assemble Protocol - decentralized event management with social coordination
 
-## Features
+## 🚀 Features
 
-- **Type-safe** contract interactions with full TypeScript support
-- **Event Management** - Create, manage, and cancel events with multi-tier ticketing
-- **Ticket Operations** - Purchase, transfer, and refund tickets with platform fees
-- **Social Features** - Friends, comments, likes, and tips
-- **Private Events** - Invite-only events with access control
-- **Platform Fees** - 0-5% referral fees for ecosystem growth
-- **Built with [viem](https://viem.sh)** for optimal performance and developer experience
+- **Complete Protocol Coverage**: Events, tickets, social features, and protocol administration
+- **React Integration**: Full React Query hooks for seamless frontend integration
+- **Type Safety**: Full TypeScript support with comprehensive type definitions
+- **Modern Stack**: Built with viem for optimal performance and developer experience
+- **Optimized Caching**: Smart query invalidation with React Query
+- **Error Handling**: Comprehensive error types with helpful messages
 
-## Installation
+## 📦 Installation
 
 ```bash
+npm install @assemble/sdk viem
+# or
 pnpm add @assemble/sdk viem
+# or
+yarn add @assemble/sdk viem
 ```
 
-## Quick Start
+For React integration, also install React Query:
+
+```bash
+npm install @tanstack/react-query react
+```
+
+## 🏗️ Quick Start
+
+### Basic Usage (Vanilla JS/TS)
 
 ```typescript
+import { AssembleClient, EventVisibility } from '@assemble/sdk'
 import { createPublicClient, createWalletClient, http } from 'viem'
-import { mainnet } from 'viem/chains'
-import { AssembleClient } from '@assemble/sdk'
+import { sepolia } from 'viem/chains'
 
-// Create clients
+// Create viem clients
 const publicClient = createPublicClient({
-  chain: mainnet,
+  chain: sepolia,
   transport: http()
 })
 
 const walletClient = createWalletClient({
-  chain: mainnet,
-  transport: http()
+  chain: sepolia,
+  transport: http(),
+  account: '0x...' // Your account
 })
 
-// Initialize Assemble SDK
-const assemble = AssembleClient.create({
-  contractAddress: '0x0000000000000000000000000000000000000000', // Replace with actual address
+// Create Assemble SDK client
+const client = AssembleClient.create({
+  contractAddress: '0x...',
   publicClient,
   walletClient
 })
-```
 
-## Usage Examples
-
-### Creating an Event
-
-```typescript
-import { EventVisibility } from '@assemble/sdk'
-
+// Create an event
 const eventParams = {
-  title: "Web3 Conference 2024",
-  description: "Annual blockchain and web3 technology conference",
-  imageUri: "ipfs://QmYourImageHash",
-  startTime: BigInt(Math.floor(Date.now() / 1000) + 86400), // Tomorrow
-  endTime: BigInt(Math.floor(Date.now() / 1000) + 172800),   // Day after
-  capacity: 500,
+  title: 'My Event',
+  description: 'An awesome event',
+  imageUri: 'https://example.com/image.jpg',
+  startTime: BigInt(Math.floor(Date.now() / 1000) + 3600),
+  endTime: BigInt(Math.floor(Date.now() / 1000) + 7200),
+  capacity: 100,
   venueId: 1n,
   visibility: EventVisibility.PUBLIC,
-  tiers: [
-    {
-      name: "General Admission",
-      price: BigInt(1e18), // 1 ETH
-      maxSupply: 400,
-      sold: 0,
-      startSaleTime: BigInt(Math.floor(Date.now() / 1000)),
-      endSaleTime: BigInt(Math.floor(Date.now() / 1000) + 86400),
-      transferrable: true
-    },
-    {
-      name: "VIP Access",
-      price: BigInt(2e18), // 2 ETH
-      maxSupply: 100,
-      sold: 0,
-      startSaleTime: BigInt(Math.floor(Date.now() / 1000)),
-      endSaleTime: BigInt(Math.floor(Date.now() / 1000) + 86400),
-      transferrable: true
-    }
-  ],
-  paymentSplits: [
-    {
-      recipient: '0x1234...', // Organizer address
-      basisPoints: 8000      // 80%
-    },
-    {
-      recipient: '0x5678...', // Venue address
-      basisPoints: 2000      // 20%
-    }
-  ]
+  tiers: [{
+    name: 'General Admission',
+    price: parseEther('0.1'),
+    maxSupply: 100,
+    sold: 0,
+    startSaleTime: BigInt(Math.floor(Date.now() / 1000)),
+    endSaleTime: BigInt(Math.floor(Date.now() / 1000) + 3600),
+    transferrable: true
+  }],
+  paymentSplits: [{
+    recipient: '0x...',
+    basisPoints: 10000 // 100%
+  }]
 }
 
-const txHash = await assemble.events.createEvent(eventParams)
-console.log('Event created:', txHash)
+const hash = await client.events.createEvent(eventParams)
 ```
 
-### Purchasing Tickets
+### React Integration
+
+```tsx
+import React from 'react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { 
+  AssembleProvider, 
+  useEvents, 
+  useCreateEvent, 
+  usePurchaseTickets 
+} from '@assemble/sdk/react'
+
+const queryClient = new QueryClient()
+
+function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AssembleProvider client={assembleClient}>
+        <EventList />
+      </AssembleProvider>
+    </QueryClientProvider>
+  )
+}
+
+function EventList() {
+  const { data: events, isLoading } = useEvents()
+  const createEvent = useCreateEvent()
+
+  if (isLoading) return <div>Loading events...</div>
+
+  return (
+    <div>
+      {events?.events.map(event => (
+        <div key={event.id.toString()}>
+          <h3>{event.title}</h3>
+          <p>{event.description}</p>
+        </div>
+      ))}
+    </div>
+  )
+}
+```
+
+## 📚 Core Managers
+
+### 🎫 Event Manager
 
 ```typescript
-// Basic ticket purchase
-const purchaseHash = await assemble.tickets.purchaseTickets({
-  eventId: 1n,
-  tierId: 0,    // General Admission
-  quantity: 2
-}, BigInt(2e18)) // 2 ETH total
+// Get events with pagination
+const events = await client.events.getEvents({ limit: 10, offset: 0 })
 
-// Purchase with platform fee (venue gets 2%)
-const purchaseWithFeeHash = await assemble.tickets.purchaseTickets({
+// Get specific event
+const event = await client.events.getEvent(1n)
+
+// Create event
+const hash = await client.events.createEvent(eventParams)
+
+// Cancel event
+const cancelHash = await client.events.cancelEvent(1n)
+
+// RSVP management
+await client.events.updateRSVP(1n, RSVPStatus.GOING)
+const rsvpStatus = await client.events.getUserRSVP(1n, userAddress)
+```
+
+### 🎟️ Ticket Manager
+
+```typescript
+// Calculate ticket price
+const price = await client.tickets.calculatePrice(1n, 0, 2) // eventId, tierId, quantity
+
+// Purchase tickets
+const purchaseHash = await client.tickets.purchaseTickets({
   eventId: 1n,
   tierId: 0,
-  quantity: 1,
-  referrer: '0xVenueAddress...',
-  platformFeeBps: 200 // 2%
-}, BigInt(1e18))
-```
+  quantity: 2
+}, price)
 
-### Social Features
+// Get user tickets
+const tickets = await client.tickets.getTickets(userAddress)
 
-```typescript
-// Add a friend
-await assemble.social.addFriend('0xFriendAddress...')
-
-// Post a comment on an event
-await assemble.social.postComment(1n, "Can't wait for this event!")
-
-// Tip the event organizer (with platform fee)
-await assemble.social.tipEvent(
-  1n,                    // eventId
-  BigInt(1e17),         // 0.1 ETH tip
-  '0xPlatformAddress...', // referrer
-  150                    // 1.5% platform fee
+// Transfer tickets
+const transferHash = await client.tickets.transferTickets(
+  recipientAddress, 
+  1n, // eventId
+  0,  // tierId
+  1   // amount
 )
+
+// Check-in and use tickets
+const tokenId = await client.tickets.generateTokenId(1n, 0)
+await client.tickets.checkInWithTicket(1n, tokenId)
+await client.tickets.useTicket(1n, 0)
 ```
 
-### Private Events
+### 👥 Social Manager
 
 ```typescript
-// Create invite-only event
-const privateEventParams = {
-  ...eventParams,
-  visibility: EventVisibility.PRIVATE
-}
+// Friend management
+await client.social.addFriend(friendAddress)
+const friends = await client.social.getFriends(userAddress)
+const isFriend = await client.social.isFriend(user1, user2)
 
-const eventId = await assemble.events.createEvent(privateEventParams)
+// Comments
+const commentHash = await client.social.postComment(1n, "Great event!")
+const comments = await client.social.getEventComments(1n)
+await client.social.likeComment(commentId)
 
-// Invite specific users (only organizer can do this)
-await assemble.events.inviteToEvent(eventId, [
-  '0xAlice...',
-  '0xBob...',
-  '0xCharlie...'
-])
-
-// Invited users can now purchase tickets
-// Non-invited users will get reverted transactions
+// Tips
+const tipHash = await client.social.tipEvent(1n, parseEther('0.1'))
+const pendingWithdrawals = await client.social.getPendingWithdrawals(userAddress)
 ```
 
-## Contract Addresses
-
-| Network | Address |
-|---------|---------|
-| Mainnet | `0x0000000000000000000000000000000000000000` |
-| Sepolia | `0x0000000000000000000000000000000000000000` |
-| Base    | `0x0000000000000000000000000000000000000000` |
-| Base Sepolia | `0x0000000000000000000000000000000000000000` |
-
-> **Note**: Replace with actual deployed contract addresses
-
-## API Reference
-
-### AssembleClient
-
-Main client class for interacting with the Assemble Protocol.
+### 🏛️ Protocol Manager
 
 ```typescript
-class AssembleClient {
-  static create(options: CreateClientOptions): AssembleClient
-  
-  readonly events: EventManager
-  readonly tickets: TicketManager  
-  readonly social: SocialManager
-  
-  get account(): Address | undefined
-  get isConnected(): boolean
-  
-  getChainId(): Promise<number>
-  switchChain(chainId: number): Promise<void>
-  setWalletClient(walletClient: WalletClient): void
-  disconnect(): void
-}
+// Read protocol settings
+const protocolFee = await client.protocol.getProtocolFee()
+const feeTo = await client.protocol.getFeeTo()
+
+// Admin functions
+await client.protocol.setProtocolFee(100) // 1%
+await client.protocol.setFeeTo(newAddress)
 ```
 
-### EventManager
+## 🎣 React Hooks
 
-Manage events and their lifecycle.
+### Event Hooks
 
-```typescript
-class EventManager {
-  createEvent(params: CreateEventParams): Promise<Hash>
-  getEvent(eventId: bigint): Promise<Event | null>
-  getEvents(options?: GetEventsOptions): Promise<EventsResponse>
-  cancelEvent(eventId: bigint): Promise<Hash>
-  getEventsByOrganizer(organizer: Address): Promise<Event[]>
-  isEventOrganizer(eventId: bigint, address: Address): Promise<boolean>
+```tsx
+import { 
+  useEvent, 
+  useEvents, 
+  useCreateEvent, 
+  useUpdateRSVP 
+} from '@assemble/sdk/react'
+
+function EventComponent() {
+  const { data: event } = useEvent(1n)
+  const { data: events } = useEvents({ limit: 10 })
+  const createEvent = useCreateEvent()
+  const updateRSVP = useUpdateRSVP()
+
+  return (
+    <div>
+      <button onClick={() => updateRSVP.mutate({ 
+        eventId: 1n, 
+        status: RSVPStatus.GOING 
+      })}>
+        RSVP Going
+      </button>
+    </div>
+  )
 }
 ```
 
-### TicketManager
+### Ticket Hooks
 
-Handle ticket purchases, transfers, and refunds.
+```tsx
+import { 
+  useTickets, 
+  usePurchaseTickets, 
+  useTicketPrice 
+} from '@assemble/sdk/react'
 
-```typescript
-class TicketManager {
-  purchaseTickets(params: PurchaseTicketsParams, value: bigint): Promise<Hash>
-  calculatePrice(eventId: bigint, tierId: number, quantity: number): Promise<bigint>
-  getTickets(owner: Address): Promise<TicketsResponse>
-  getTicketBalance(owner: Address, eventId: bigint, tierId: number): Promise<number>
-  transferTickets(to: Address, eventId: bigint, tierId: number, amount: number): Promise<Hash>
-  useTicket(eventId: bigint, tierId: number): Promise<Hash>
-  getRefundAmounts(eventId: bigint, user: Address): Promise<{ ticketRefund: bigint; tipRefund: bigint }>
-  claimRefund(eventId: bigint): Promise<Hash>
+function TicketComponent() {
+  const { data: tickets } = useTickets(userAddress)
+  const { data: price } = useTicketPrice(1n, 0, 2)
+  const purchaseTickets = usePurchaseTickets()
+
+  const handlePurchase = () => {
+    if (price) {
+      purchaseTickets.mutate({
+        params: { eventId: 1n, tierId: 0, quantity: 2 },
+        value: price
+      })
+    }
+  }
+
+  return (
+    <div>
+      <button onClick={handlePurchase}>
+        Buy 2 tickets for {price ? formatEther(price) : '...'} ETH
+      </button>
+    </div>
+  )
 }
 ```
 
-### SocialManager
+### Social Hooks
 
-Social features including friends, comments, and tips.
+```tsx
+import { 
+  useFriends, 
+  useAddFriend, 
+  useEventComments, 
+  usePostComment 
+} from '@assemble/sdk/react'
 
-```typescript
-class SocialManager {
-  addFriend(friendAddress: Address): Promise<Hash>
-  removeFriend(friendAddress: Address): Promise<Hash>
-  getFriends(userAddress: Address): Promise<Address[]>
-  isFriend(user1: Address, user2: Address): Promise<boolean>
-  
-  postComment(eventId: bigint, content: string, parentId?: bigint): Promise<Hash>
-  likeComment(commentId: bigint): Promise<Hash>
-  unlikeComment(commentId: bigint): Promise<Hash>
-  getComments(eventId: bigint): Promise<Comment[]>
-  
-  tipEvent(eventId: bigint, amount: bigint, referrer?: Address, platformFeeBps?: number): Promise<Hash>
+function SocialComponent() {
+  const { data: friends } = useFriends(userAddress)
+  const { data: comments } = useEventComments(1n)
+  const addFriend = useAddFriend()
+  const postComment = usePostComment()
+
+  return (
+    <div>
+      <button onClick={() => addFriend.mutate(friendAddress)}>
+        Add Friend
+      </button>
+      <button onClick={() => postComment.mutate({
+        eventId: 1n,
+        content: "Great event!"
+      })}>
+        Post Comment
+      </button>
+    </div>
+  )
 }
 ```
 
-## Error Handling
+## 🔧 Configuration
 
-The SDK provides comprehensive error types:
+### Supported Chains
+
+```typescript
+import { sepolia, mainnet, base, baseSepolia } from '@assemble/sdk'
+
+// Pre-configured chain information
+const sepoliaConfig = sepolia // Chain ID 11155111
+const mainnetConfig = mainnet // Chain ID 1
+```
+
+### Error Handling
 
 ```typescript
 import { 
-  AssembleError, 
   ContractError, 
-  ValidationError, 
-  NetworkError, 
-  WalletError,
+  WalletError, 
+  ValidationError,
   isContractError 
 } from '@assemble/sdk'
 
 try {
-  await assemble.tickets.purchaseTickets(params, value)
+  await client.events.createEvent(params)
 } catch (error) {
   if (isContractError(error)) {
-    console.log('Contract error:', error.contractError)
-  } else if (error instanceof ValidationError) {
-    console.log('Validation error:', error.field)
+    console.error('Contract error:', error.message)
+  } else if (error instanceof WalletError) {
+    console.error('Wallet error:', error.message)
   }
 }
 ```
 
-## Platform Fees & Ecosystem Growth
+## 🧪 Testing
 
-Platform fees (0-5%) enable sustainable ecosystem development:
-
-```typescript
-// Music venue gets 2% commission
-await assemble.tickets.purchaseTickets({
-  eventId: 1n,
-  tierId: 0,
-  quantity: 1,
-  referrer: venueAddress,
-  platformFeeBps: 200 // 2%
-}, ticketPrice)
-
-// Event discovery platform gets 1.5% for promotion
-await assemble.social.tipEvent(
-  eventId,
-  tipAmount,
-  platformAddress,
-  150 // 1.5%
-)
-```
-
-**Benefits:**
-- Incentivizes venues to host events
-- Rewards platforms for event discovery
-- Supports influencer partnerships
-- Transparent on-chain fee tracking
-- Self-referral prevention ensures legitimacy
-
-## Development
+The SDK includes comprehensive tests for both unit and integration testing:
 
 ```bash
-# Install dependencies
-pnpm install
-
-# Build the SDK
-pnpm build
-
-# Run tests
+# Run all tests
 pnpm test
 
-# Type check
-pnpm type-check
+# Run unit tests only
+pnpm test test/unit/
+
+# Run with coverage
+pnpm test:coverage
+
+# Run integration tests (requires local anvil)
+pnpm test:anvil
 ```
 
-## License
+## 📝 Type Definitions
 
-MIT
+The SDK provides full TypeScript support with comprehensive type definitions:
 
-## About
+```typescript
+import type {
+  Event,
+  TicketTier,
+  Ticket,
+  CreateEventParams,
+  PurchaseTicketsParams,
+  EventVisibility,
+  RSVPStatus
+} from '@assemble/sdk'
+```
 
-Built for the [Assemble Protocol](https://github.com/taayyohh/assemble) - a foundational singleton smart contract protocol for onchain social coordination and event management. 
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🔗 Links
+
+- [Assemble Protocol](https://github.com/taayyohh/assemble)
+- [Documentation](https://docs.assembleprotocol.com)
+- [Discord](https://discord.gg/assemble) 
