@@ -27,7 +27,7 @@
     "dev": "tsup --watch",
     "type-check": "tsc --noEmit",
     "test": "vitest run",
-    "test:unit": "vitest run test/unit/SDK.test.ts test/integration/build-validation.test.ts",
+  "test:unit": "vitest run test/unit/SDK.test.ts test/integration/build-validation.test.ts",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
@@ -87,8 +87,5 @@
     "tsup": "^8.5.0",
     "typescript": "^5.8.0",
     "vitest": "^3.1.4"
-  },
-  "publishConfig": {
-    "access": "public"
   }
 }

@@ -4,6 +4,12 @@ import { EventManager } from './events'
 import { TicketManager } from './tickets'
 import { SocialManager } from './social'
 import { ProtocolManager } from './protocol'
+import { ERC20Manager } from './erc20'
+import { VenueManager } from './venue'
+import { PrivateEventManager } from './private-events'
+import { PlatformFeeManager } from './platform-fees'
+import { RefundManager } from './refunds'
+import { TokenManager } from './tokens'
 import { NetworkError, WalletError } from '../errors'
 
 export interface CreateClientOptions {
@@ -23,6 +29,12 @@ export class AssembleClient {
   public readonly tickets: TicketManager
   public readonly social: SocialManager
   public readonly protocol: ProtocolManager
+  public readonly erc20: ERC20Manager
+  public readonly venues: VenueManager
+  public readonly privateEvents: PrivateEventManager
+  public readonly platformFees: PlatformFeeManager
+  public readonly refunds: RefundManager
+  public readonly tokens: TokenManager
 
   constructor(config: AssembleClientConfig) {
     this.config = config
@@ -32,6 +44,12 @@ export class AssembleClient {
     this.tickets = new TicketManager(config)
     this.social = new SocialManager(config)
     this.protocol = new ProtocolManager(config)
+    this.erc20 = new ERC20Manager(config)
+    this.venues = new VenueManager(config)
+    this.privateEvents = new PrivateEventManager(config)
+    this.platformFees = new PlatformFeeManager(config)
+    this.refunds = new RefundManager(config)
+    this.tokens = new TokenManager(config)
   }
 
   /**

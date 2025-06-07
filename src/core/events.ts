@@ -1,5 +1,5 @@
 import { Address, Hash } from 'viem'
-import { AssembleClientConfig, Event, CreateEventParams, EventsResponse, RSVPStatus } from '../types'
+import { AssembleClientConfig, Event, CreateEventParams, EventsResponse, RSVPStatus, LocationData, LocationCoordinates, VenueData, EventStatus } from '../types'
 import { WalletError, ContractError, ValidationError } from '../errors'
 import { validateEventTiming, validateCapacity, validatePaymentSplits, validateAddress } from '../utils'
 import { ASSEMBLE_ABI } from '../constants/abi'
@@ -11,7 +11,7 @@ export class EventManager {
   constructor(private config: AssembleClientConfig) {}
 
   /**
-   * Create a new event
+   * Create a new event with enhanced location/venue support
    */
   async createEvent(params: CreateEventParams): Promise<Hash> {
     if (!this.config.walletClient) {
@@ -23,7 +23,23 @@ export class EventManager {
     validateCapacity(params.capacity)
     validatePaymentSplits(params.paymentSplits)
 
+    // ✅ NEW: Validate location coordinates
+    if (params.latitude < -90 || params.latitude > 90) {
+      throw new ValidationError('Latitude must be between -90 and 90')
+    }
+    if (params.longitude < -180 || params.longitude > 180) {
+      throw new ValidationError('Longitude must be between -180 and 180')
+    }
+    if (!params.venueName || params.venueName.trim().length === 0) {
+      throw new ValidationError('Venue name is required')
+    }
+
     try {
+      // ✅ NEW: Pack location data (as done in protocol)
+      const latFixed = BigInt(Math.round(params.latitude * 1000000))
+      const lonFixed = BigInt(Math.round(params.longitude * 1000000))
+      const locationData = (latFixed << 128n) | (lonFixed & ((1n << 128n) - 1n))
+
       // Format event parameters according to contract structure
       const eventParams = {
         title: params.title,
@@ -34,6 +50,8 @@ export class EventManager {
         capacity: params.capacity,
         venueId: params.venueId,
         visibility: params.visibility,
+        locationData, // ✅ NEW: Packed GPS coordinates
+        venueName: params.venueName, // ✅ NEW: Venue name
       }
 
       const hash = await this.config.walletClient.writeContract({
@@ -50,7 +68,7 @@ export class EventManager {
   }
 
   /**
-   * Get event by ID
+   * Get event by ID with enhanced venue/location data
    */
   async getEvent(eventId: bigint): Promise<Event | null> {
     try {
@@ -84,22 +102,52 @@ export class EventManager {
       }
 
       // Contract structure based on ABI:
-      // [basePrice, startTime, capacity, venueId, visibility, status]
-      const [, startTime, capacity, venueId, visibility] = eventData
+      // [basePrice, startTime, capacity, venueId, visibility, status, locationData, venueName, venueHash, tierCount]
+      const [basePrice, startTime, capacity, venueId, visibility, status, locationData, venueName, venueHash, tierCount] = eventData
+
+      // ✅ NEW: Unpack location data
+      const lonMask = (1n << 128n) - 1n
+      const lonFixed = BigInt(locationData) & lonMask
+      const latFixed = BigInt(locationData) >> 128n
+      
+      // Handle signed values
+      const signBit = 1n << 127n
+      const signMask = signBit - 1n
+
+      let latSigned = latFixed
+      if (latFixed & signBit) {
+        latSigned = latFixed | ~signMask
+      }
+
+      let lonSigned = lonFixed
+      if (lonFixed & signBit) {
+        lonSigned = lonFixed | ~signMask
+      }
+
+      const latitude = Number(latSigned) / 1000000
+      const longitude = Number(lonSigned) / 1000000
 
       return {
         id: eventId,
-        // Note: title, description, imageUri, endTime are not available from contract getters
-        title: `Event #${eventId}`, // Fallback since metadata not available
-        description: '', // Not available from contract
-        imageUri: '', // Not available from contract  
+        // Note: title, description, imageUri, endTime would need to be from event logs or off-chain
+        title: `Event #${eventId}`, // Fallback since metadata not available from contract getters
+        description: '', // Not available from contract getters
+        imageUri: '', // Not available from contract getters
         startTime: BigInt(startTime),
         endTime: BigInt(startTime) + 7200n, // Fallback: assume 2 hours duration
         capacity: Number(capacity),
-        venueId: BigInt(venueId),
+        venueId: BigInt(venueId), // Legacy field
         visibility: Number(visibility),
         organizer,
         isCancelled: Boolean(isCancelled),
+        // ✅ NEW: Enhanced event fields
+        latitude,
+        longitude,
+        venueName: venueName || 'Unknown Venue',
+        venueHash: BigInt(venueHash),
+        status: Number(status),
+        tierCount: Number(tierCount),
+        basePrice: BigInt(basePrice),
       } as Event
     } catch (error) {
       throw new ContractError('Failed to get event', error instanceof Error ? error.message : 'Unknown error')
@@ -347,20 +395,99 @@ export class EventManager {
   }
 
   /**
-   * Check if an event is cancelled
+   * Check if an event is cancelled (enhanced)
    */
   async isEventCancelled(eventId: bigint): Promise<boolean> {
     try {
-      const result = await this.config.publicClient.readContract({
-        address: this.config.contractAddress,
-        abi: ASSEMBLE_ABI,
-        functionName: 'isEventCancelled',
-        args: [eventId],
-      })
+      const event = await this.getEvent(eventId)
+      if (!event) {
+        throw new ValidationError('Event not found')
+      }
 
-      return result as boolean
+      return event.isCancelled || event.status === EventStatus.CANCELLED
     } catch (error) {
       throw new ContractError('Failed to check if event is cancelled', error instanceof Error ? error.message : 'Unknown error')
     }
+  }
+
+  /**
+   * ✅ NEW: Get event location data
+   */
+  async getEventLocation(eventId: bigint): Promise<LocationData> {
+    const event = await this.getEvent(eventId)
+    if (!event) {
+      throw new ValidationError('Event not found')
+    }
+
+    const coordinates: LocationCoordinates = {
+      latitude: event.latitude,
+      longitude: event.longitude,
+    }
+
+    const venue: VenueData = {
+      hash: event.venueHash,
+      name: event.venueName,
+      eventCount: 0, // Would need separate call to get venue event count
+      coordinates,
+    }
+
+    return {
+      coordinates,
+      venue,
+    }
+  }
+
+  /**
+   * ✅ NEW: Get event venue data
+   */
+  async getEventVenue(eventId: bigint): Promise<VenueData> {
+    const event = await this.getEvent(eventId)
+    if (!event) {
+      throw new ValidationError('Event not found')
+    }
+
+    // Get venue event count
+    const venueEventCount = await this.config.publicClient.readContract({
+      address: this.config.contractAddress,
+      abi: ASSEMBLE_ABI,
+      functionName: 'venueEventCount',
+      args: [event.venueHash],
+    }) as bigint
+
+    return {
+      hash: event.venueHash,
+      name: event.venueName,
+      eventCount: Number(venueEventCount),
+      coordinates: {
+        latitude: event.latitude,
+        longitude: event.longitude,
+      },
+    }
+  }
+
+  /**
+   * ✅ NEW: Get events by venue hash
+   */
+  async getEventsByVenue(venueHash: bigint): Promise<Event[]> {
+    // This would typically require event log filtering or off-chain indexing
+    // For now, we'll scan through events and filter by venue hash
+    try {
+      const allEvents = await this.getEvents({ limit: 100 })
+      return allEvents.events.filter(event => event.venueHash === venueHash)
+    } catch (error) {
+      throw new ContractError('Failed to get events by venue', error instanceof Error ? error.message : 'Unknown error')
+    }
+  }
+
+  /**
+   * ✅ NEW: Get event status
+   */
+  async getEventStatus(eventId: bigint): Promise<EventStatus> {
+    const event = await this.getEvent(eventId)
+    if (!event) {
+      throw new ValidationError('Event not found')
+    }
+
+    return event.status as EventStatus
   }
 } 
