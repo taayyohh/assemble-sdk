@@ -1,14 +1,18 @@
 import { Chain } from 'viem'
-import { mainnet, sepolia, base, baseSepolia } from 'viem/chains'
+import { mainnet, sepolia, base, baseSepolia, optimism, arbitrum, polygon, zora } from 'viem/chains'
 
-// Placeholder contract address - will be updated with actual vanity address
-export const ASSEMBLE_CONTRACT_ADDRESS = '0x0000000000000000000000000000000000000000' as const
+// Vanity contract address - deployed on all supported networks
+export const ASSEMBLE_CONTRACT_ADDRESS = '0x000000000a020d45fFc5cfcF7B28B5020ddd6a85' as const
 
 export const SUPPORTED_CHAINS = {
   mainnet,
   sepolia,
   base,
   baseSepolia,
+  optimism,
+  arbitrum,
+  polygon,
+  zora,
 } as const
 
 export type SupportedChainId = keyof typeof SUPPORTED_CHAINS
@@ -18,6 +22,10 @@ export const CHAIN_CONTRACT_ADDRESSES: Record<SupportedChainId, `0x${string}`> =
   sepolia: ASSEMBLE_CONTRACT_ADDRESS,
   base: ASSEMBLE_CONTRACT_ADDRESS,
   baseSepolia: ASSEMBLE_CONTRACT_ADDRESS,
+  optimism: ASSEMBLE_CONTRACT_ADDRESS,
+  arbitrum: ASSEMBLE_CONTRACT_ADDRESS,
+  polygon: ASSEMBLE_CONTRACT_ADDRESS,
+  zora: ASSEMBLE_CONTRACT_ADDRESS,
 }
 
 export function getContractAddress(chain: Chain): `0x${string}` {
